@@ -1,0 +1,5 @@
+{
+  "name": "Roblox UV Texture Painter",
+  "description": "An AI-powered tool to generate custom textures for Roblox character UV maps. Upload a template, annotate body parts, define a style, and generate.",
+  "requestFramePermissions": []
+}
