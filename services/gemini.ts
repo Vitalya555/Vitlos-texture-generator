@@ -6,10 +6,11 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 export const detectUVParts = async (base64Image: string): Promise<Annotation[]> => {
   const prompt = `
     Analyze this Roblox character UV layout image. 
-    Identify the center point of the main body parts: Face (or Head), Torso (Front), Torso (Back), Left Arm, Right Arm, Left Leg, Right Leg.
+    Identify the CENTER POINT of the main body parts: Face (or Head), Torso (Front), Torso (Back), Left Arm, Right Arm, Left Leg, Right Leg.
     
     Return a JSON array of objects with 'label', 'x', and 'y' properties.
     x and y must be coordinates as a percentage (0-100) of the image width and height.
+    0,0 is top-left. 100,100 is bottom-right.
     
     Example: [{"label": "Face", "x": 82, "y": 20}, {"label": "Torso", "x": 50, "y": 50}]
   `;
@@ -69,13 +70,13 @@ export const generateTexture = async (
 ): Promise<string> => {
   
   // Construct a detailed prompt based on user input and annotations
-  let annotationText = "";
+  let annotationText = "NO EXPLICIT COORDINATES PROVIDED. USE STANDARD ROBLOX UV KNOWLEDGE.";
   let faceDefined = false;
 
   if (annotations.length > 0) {
-    annotationText = "COORDINATES OF BODY PARTS (Center points):\n";
+    annotationText = "CRITICAL: MANDATORY SPATIAL MAPPING (0% is Top/Left, 100% is Bottom/Right):\n";
     annotations.forEach((ann) => {
-      annotationText += `- At ${Math.round(ann.x)}% x, ${Math.round(ann.y)}% y: "${ann.label}".\n`;
+      annotationText += `   - POSITION [X:${Math.round(ann.x)}%, Y:${Math.round(ann.y)}%] -> EXACT CENTER of "${ann.label}". Paint the "${ann.label}" texture HERE.\n`;
       
       const labelLower = ann.label.toLowerCase();
       if (labelLower.includes('face') || labelLower.includes('head') || labelLower.includes('лицо') || labelLower.includes('голова')) {
@@ -85,23 +86,29 @@ export const generateTexture = async (
   }
 
   const fullPrompt = `
-    You are a professional 3D Texture Artist for Roblox.
+    Role: Professional Roblox Texture Artist.
+    Task: Create a FINAL PRODUCTION SKIN based on the User's Style and Spatial Instructions.
     
-    INPUT: A UV Layout wireframe image.
-    TASK: Create a FINAL PRODUCTION TEXTURE.
-    
-    STYLE DESCRIPTION: ${stylePrompt}
+    USER STYLE: "${stylePrompt}"
     
     ${annotationText}
     
-    CRITICAL RENDERING RULES (MUST FOLLOW):
-    1. **OBLITERATE THE WIREFRAME**: The input image contains black layout lines. You must PAINT COMPLETELY OVER THEM. The final output must be a solid, painted texture map. If I see the original grid lines in the output, it is a failure.
-    2. **SOLID FILL**: Fill the texture islands with opaque materials (metal, cloth, skin, etc.) based on the style. No transparency inside the body parts.
-    3. **FACE**: ${faceDefined ? 'Focus on the area marked "Face" or "Head".' : 'Locate the Face area.'} Paint a human/character face (eyes, mouth) suitable for the style. **DO NOT DRAW A HELMET OVER THE FACE**. The helmet is a separate 3D attachment. The face must be visible.
-    4. **LAYOUT ACCURACY**: Keep the painted areas exactly in the same positions as the input islands, but replace the wireframe pixels with texture pixels.
-    5. **BACKGROUND**: The space between the body parts should be transparent or solid black/dark.
+    EXECUTION RULES (YOU MUST OBEY):
+    1. **RESPECT MARKERS**: I have provided explicit coordinates for body parts above. You MUST paint the specific design for that part EXACTLY at those X/Y coordinates.
+       - If I say "Face" is at 80% X, 20% Y, you MUST draw the face eyes/mouth there. 
+       - Do not rely on "default" template positions if the coordinates say otherwise.
+       - The coordinates point to the CENTER of the texture island.
     
-    Think: "I see the wireframe guide. I will paint a ${stylePrompt} texture on top of it, covering every single black line with color. For the face, I will draw a face, not a mask."
+    2. **OBLITERATE THE WIREFRAME**: The input image contains layout lines. You must PAINT COMPLETELY OVER THEM with the skin texture. The final result should look like a game-ready texture file, not a wireframe.
+    
+    3. **FACE**: ${faceDefined ? 'Paint a character face (eyes, mouth) at the coordinates marked "Face".' : 'Locate the Face area and paint a face.'} 
+       - **NO HELMET ON FACE**: Even if the style is "armor", the face itself must be visible (skin + face features) unless the user explicitly asked for a full mask.
+    
+    4. **SOLID FILL**: Fill the body part islands with opaque materials matching the style.
+    
+    5. **BACKGROUND**: Keep the empty space between islands dark or transparent.
+    
+    Think: "I will find pixel location X,Y from the instructions. I will paint the ${stylePrompt} version of the body part exactly there."
   `;
 
   try {

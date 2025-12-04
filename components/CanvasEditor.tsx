@@ -121,24 +121,37 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({ imageSrc, annotations, setA
           {annotations.map((ann) => (
             <div
               key={ann.id}
-              className={`absolute transform -translate-x-1/2 -translate-y-1/2 flex flex-col items-center group/pin ${draggingId === ann.id ? 'z-50 scale-110' : 'z-20'}`}
-              style={{ left: `${ann.x}%`, top: `${ann.y}%`, touchAction: 'none' }}
+              className={`absolute flex flex-col items-center group/pin ${draggingId === ann.id ? 'z-50' : 'z-20'}`}
+              // Visual Anchor Logic:
+              // top/left at X%,Y%. 
+              // Translate X -50% centers horizontally.
+              // Translate Y -100% puts the bottom of the container at the coordinate.
+              style={{ 
+                left: `${ann.x}%`, 
+                top: `${ann.y}%`, 
+                transform: 'translate(-50%, -100%)', 
+                touchAction: 'none' 
+              }}
               onPointerDown={(e) => startDrag(e, ann.id)}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className={`transition-transform ${draggingId === ann.id ? 'cursor-grabbing' : 'cursor-grab hover:scale-110'}`}>
-                <MapPin className="w-6 h-6 text-red-500 fill-red-500 drop-shadow-lg" />
+              {/* The Marker Icon */}
+              <div className={`relative transition-transform ${draggingId === ann.id ? 'cursor-grabbing scale-110' : 'cursor-grab hover:scale-110'}`}>
+                <MapPin className="w-8 h-8 text-red-500 fill-red-500 drop-shadow-lg" />
+                {/* Small white dot at the very tip for precision */}
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1 w-1 h-1 bg-white rounded-full opacity-70"></div>
               </div>
               
+              {/* Label */}
               <span className={`bg-black/80 text-white text-xs px-2 py-0.5 rounded mt-1 whitespace-nowrap backdrop-blur-sm select-none border border-gray-700 flex items-center gap-1 ${draggingId === ann.id ? 'ring-2 ring-blue-500' : ''}`}>
                 {ann.label}
                 {draggingId === ann.id && <Move size={10} className="text-gray-400"/>}
               </span>
 
-              {/* Delete Button (only show when not dragging) */}
+              {/* Delete Button */}
               {!draggingId && (
                 <div 
-                  className="hidden group-hover/pin:flex absolute -top-2 -right-2 bg-white text-red-600 rounded-full p-0.5 cursor-pointer hover:bg-red-100 z-30"
+                  className="hidden group-hover/pin:flex absolute -top-2 -right-2 bg-white text-red-600 rounded-full p-0.5 cursor-pointer hover:bg-red-100 z-30 shadow-sm"
                   onClick={(e) => { e.stopPropagation(); removeAnnotation(ann.id); }}
                 >
                   <X size={12} />
@@ -149,44 +162,52 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({ imageSrc, annotations, setA
 
           {/* Render Pending Annotation Input */}
           {pendingClick && !draggingId && (
-            <div 
-              className="absolute z-30 bg-gray-800 p-3 rounded-lg shadow-xl border border-gray-600 w-48 animate-in fade-in zoom-in duration-200"
-              style={{ 
-                left: `${Math.min(pendingClick.x, 70)}%`, 
-                top: `${Math.min(pendingClick.y, 80)}%` 
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <p className="text-xs text-gray-300 mb-2 font-bold">Какая это часть?</p>
-              <input
-                type="text"
-                autoFocus
-                placeholder="напр. Лицо, Торс"
-                className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500 mb-2"
-                value={tempLabel}
-                onChange={(e) => setTempLabel(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && addAnnotation()}
+            <>
+              {/* Temporary Target Dot */}
+              <div 
+                className="absolute w-3 h-3 bg-blue-500 rounded-full border-2 border-white shadow-sm transform -translate-x-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ left: `${pendingClick.x}%`, top: `${pendingClick.y}%` }}
               />
-              <div className="flex gap-2 justify-end">
-                <button 
-                  onClick={handleCancel}
-                  className="text-xs text-gray-400 hover:text-white"
-                >
-                  Отмена
-                </button>
-                <button 
-                  onClick={addAnnotation}
-                  disabled={!tempLabel.trim()}
-                  className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded disabled:opacity-50"
-                >
-                  ОК
-                </button>
+
+              <div 
+                className="absolute z-30 bg-gray-800 p-3 rounded-lg shadow-xl border border-gray-600 w-48 animate-in fade-in zoom-in duration-200"
+                style={{ 
+                  left: `${Math.min(pendingClick.x, 70)}%`, 
+                  top: `${Math.min(pendingClick.y + 2, 80)}%` 
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <p className="text-xs text-gray-300 mb-2 font-bold">Какая это часть?</p>
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="напр. Лицо, Торс"
+                  className="w-full bg-gray-900 border border-gray-600 rounded px-2 py-1 text-sm text-white focus:outline-none focus:border-blue-500 mb-2"
+                  value={tempLabel}
+                  onChange={(e) => setTempLabel(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && addAnnotation()}
+                />
+                <div className="flex gap-2 justify-end">
+                  <button 
+                    onClick={handleCancel}
+                    className="text-xs text-gray-400 hover:text-white"
+                  >
+                    Отмена
+                  </button>
+                  <button 
+                    onClick={addAnnotation}
+                    disabled={!tempLabel.trim()}
+                    className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded disabled:opacity-50"
+                  >
+                    ОК
+                  </button>
+                </div>
               </div>
-            </div>
+            </>
           )}
         </div>
         <p className="text-xs text-gray-500 mt-2 px-1">
-           * Важно: Отметьте "Лицо", чтобы AI не рисовал шлем. Вы можете перетаскивать метки.
+           * Маркеры указывают AI, где рисовать конкретную часть тела.
         </p>
       </div>
       
